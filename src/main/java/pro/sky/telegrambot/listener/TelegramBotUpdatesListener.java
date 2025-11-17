@@ -23,6 +23,9 @@ import java.util.regex.Pattern;
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
+    public static Pattern PATTERN = Pattern.compile("(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})(\\s+)(.+)");
+    public static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     @Autowired
     private NotificationTaskRepository notificationTaskRepository;
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
@@ -40,25 +43,22 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         updates.forEach(update -> {
             logger.info("Processing update: {}", update);
             NotificationTask notificationTask = new NotificationTask();
+            long chatId = update.message().chat().id();
             if (update.message().text().equals("/start")) {
-                long chatId = update.message().chat().id();
                 SendMessage message = new SendMessage(chatId, "Приветствую! Какую напоминалку ставим?");
                 SendResponse response = telegramBot.execute(message);
             }
-            Pattern pattern = Pattern.compile("(\\d{2}\\.\\d{2}\\.\\d{4}\\s\\d{2}:\\d{2})(\\s+)(.+)");
-            Matcher matcher = pattern.matcher(update.message().text());
+            Matcher matcher = PATTERN.matcher(update.message().text());
             if (matcher.matches()) {
-                long chatId = update.message().chat().id();
                 notificationTask.setChat_id(chatId);
                 String data = matcher.group(1);
                 String item = matcher.group(3);
-                LocalDateTime messageTime = LocalDateTime.parse(data, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+                LocalDateTime messageTime = LocalDateTime.parse(data, FORMATTER);
                 notificationTask.setMessage_time(messageTime);
                 notificationTask.setMessage_text(item);
                 notificationTask.setChat_id(chatId);
                 notificationTaskRepository.save(notificationTask);
             } else {
-                long chatId = update.message().chat().id();
                 SendMessage message = new SendMessage(chatId,
                         "Формат сообщения должен быть \"ДД:ММ:ГГГГ ЧЧ:ММ Текст напоминания\"");
                 SendResponse response = telegramBot.execute(message);
